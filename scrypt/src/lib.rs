@@ -74,6 +74,9 @@ pub use password_hash;
 #[cfg(feature = "simple")]
 pub use crate::simple::{Scrypt, ALG_ID};
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
 /// The scrypt key derivation function.
 ///
 /// # Arguments
@@ -109,12 +112,21 @@ pub fn scrypt(
     let mut b = vec![0u8; pr128];
     pbkdf2::<Hmac<Sha256>>(password, salt, 1, &mut b);
 
-    let mut v = vec![0u8; nr128];
-    let mut t = vec![0u8; r128];
-
-    for chunk in &mut b.chunks_mut(r128) {
-        romix::scrypt_ro_mix(chunk, &mut v, &mut t, n);
+    #[cfg(not(feature = "parallel"))] 
+    {
+        let mut v = vec![0u8; nr128];
+        let mut t = vec![0u8; r128];
+        for chunk in &mut b.chunks_mut(r128) {
+            romix::scrypt_ro_mix(chunk, &mut v, &mut t, n);
+        }
     }
+    
+    #[cfg(feature = "parallel")]
+    b.par_chunks_mut(r128).for_each(|chunk| {
+        let mut v = vec![0u8; nr128];
+        let mut t = vec![0u8; r128];
+        romix::scrypt_ro_mix(chunk, &mut v, &mut t, n);
+    });
 
     pbkdf2::<Hmac<Sha256>>(password, &b, 1, output);
     Ok(())

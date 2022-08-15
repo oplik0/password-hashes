@@ -383,6 +383,7 @@ dependencies = [
  "hmac",
  "password-hash",
  "pbkdf2",
+ "rayon",
  "salsa20",
  "sha2",
 ]
